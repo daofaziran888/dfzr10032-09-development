@@ -7,6 +7,7 @@
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记转换节点</button>
+        <button class="btn" type="button" @click="openCalculate">转换计算结果</button>
         <button class="btn" type="button" @click="exportRows">导出采集转换管道清单</button>
       </div>
     </header>
@@ -85,10 +86,13 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { request } from '@/api/client'
 
 type Row = Record<string, string | number | null>
+
+const router = useRouter()
 
 const ENDPOINT = '/api/transform'
 const columns = ["节点编号", "输入来源", "输出目标", "转换表达式", "执行顺序", "依赖节点", "失败策略", "节点状态"]
@@ -118,6 +122,10 @@ function resetFilters() {
 
 function exportRows() {
   window.open(`${ENDPOINT}/export`, '_blank')
+}
+
+function openCalculate() {
+  void router.push('/transform/calculate')
 }
 
 function openCreate() {

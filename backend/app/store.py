@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.seed import SEED_ROWS
+from app.seed_events import EVENT_SEED_ROWS
 
 
 class Store:
@@ -14,9 +15,12 @@ class Store:
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
+        # 解析/转换链路内部表以下划线开头，不参与运营概览统计。
+        for name, rows in EVENT_SEED_ROWS.items():
+            self._tables[name] = [dict(row) for row in rows]
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        return sorted(name for name in self._tables if not name.startswith("_"))
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])

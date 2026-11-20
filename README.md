@@ -73,3 +73,46 @@ npm run dev
   `backend/app/routers/<模块>.py`，业务规则在 `backend/app/services/<模块>.py`。
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
+
+## 解析与转换计算
+
+格式解析配置表（`parser`）只描述字段映射、类型转换和空值处理，本身不含事件明细。
+事件解析与转换计算在这之上补了两条链路：
+
+```text
+_raw_events ──按解析配置逐字段转换──> 标准化事件明细 ──按表达式字段依赖──> 转换结果 / 阻断记录
+                        （保留原始行号）                    （都关联原始事件）
+```
+
+- 原始事件：`GET /api/parser/events/raw?config=PARS-0004`，按解析配置读取，
+  保留文件行号（表头第 1 行，数据从第 2 行起）与源字段原文。
+- 标准化明细：`GET /api/parser/events?config=PARS-0004`，每个字段单独记录
+  `ok` / `missing` / `invalid`：
+  - `missing`：源数据原本就没有提供值（空串、`-`、`NULL` 等空值标记）；
+  - `invalid`：提供了值但无法按目标类型转换（例如重量写成「复秤中」）。
+  两者分开计数，不做合并。
+- 转换计算：`GET /api/transform/calculate?config=PARS-0004[&expression=EXPR-0002]`，
+  每条计算记录归属为：
+
+  | 归属 | 含义 |
+  | --- | --- |
+  | `未纳入` | 不满足表达式的纳入条件，本来就不参与统计 |
+  | `被阻断` | 参与统计需要的字段转换失败，生成阻断记录 |
+  | `正常产出` | 依赖字段全部可用，按分组计入聚合结果 |
+
+  可选依赖字段失败同样阻断：这类字段通常用于限定统计范围，取不到值时继续计算
+  会悄悄改变下游收到的数据范围。
+
+样例数据（`backend/app/seed_events.py`）是一条地磅称重明细：第 3 行时间合法但重量是
+「复秤中」。`EXPR-0001`（按小时汇总到货次数）只依赖 `event_time`，该行正常产出；
+`EXPR-0002`（按重量算运量）必填 `weight_kg`、`EXPR-0003`（按站点汇总入库车次）
+把 `weight_kg` 列为可选依赖，两者都会把该行标为被阻断，并指回原始行号 3。
+
+前端页面：
+
+- `/parser/events` 标准化事件明细：逐字段展示转换结果、查看原始事件、重新标准化。
+- `/transform/calculate` 转换计算结果：按表达式展示正常产出/被阻断/未纳入，
+  计算记录可展开查看原文与阻断原因。
+
+内部表 `_parse_config`、`_raw_events`、`_normalized_events`、`_transform_expressions`
+以下划线开头，不计入运营概览的模块统计。

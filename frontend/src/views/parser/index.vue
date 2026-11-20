@@ -7,6 +7,7 @@
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记解析配置</button>
+        <button class="btn" type="button" @click="openEvents">标准化事件明细</button>
         <button class="btn" type="button" @click="exportRows">导出格式解析器清单</button>
       </div>
     </header>
@@ -85,10 +86,13 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { request } from '@/api/client'
 
 type Row = Record<string, string | number | null>
+
+const router = useRouter()
 
 const ENDPOINT = '/api/parser'
 const columns = ["解析编号", "输入格式", "输出格式", "字段映射", "类型转换", "空值处理", "异常策略", "解析状态"]
@@ -118,6 +122,10 @@ function resetFilters() {
 
 function exportRows() {
   window.open(`${ENDPOINT}/export`, '_blank')
+}
+
+function openEvents() {
+  void router.push('/parser/events')
 }
 
 function openCreate() {
